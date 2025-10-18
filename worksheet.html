@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maths Worksheet Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f3f4f6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .controls {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            width: 100px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 0.625rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-generate {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-generate:hover {
+            background: #2563eb;
+        }
+
+        .btn-print {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-print:hover {
+            background: #059669;
+        }
+
+        .btn-pdf {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-pdf:hover {
+            background: #7c3aed;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #1e40af;
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        canvas {
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .controls {
+                display: none;
+            }
+            .canvas-container {
+                margin: 0;
+                page-break-after: always;
+            }
+            canvas {
+                width: 210mm !important;
+                height: 297mm !important;
+                max-width: 100%;
+                border: none;
+                box-shadow: none;
+            }
+            @page {
+                margin: 0;
+                size: A4 portrait;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <h1>Maths Worksheet Generator</h1>
+            
+            <div class="input-group">
+                <div class="input-field">
+                    <label for="startPage">Start Page:</label>
+                    <input type="number" id="startPage" value="1" min="1">
+                </div>
+                
+                <div class="input-field">
+                    <label for="endPage">End Page:</label>
+                    <input type="number" id="endPage" value="1" min="1">
+                </div>
+                
+                <div class="input-field">
+                    <label for="questionsPerSheet">Questions per Sheet:</label>
+                    <input type="number" id="questionsPerSheet" value="40" min="10" max="40">
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-generate" onclick="generateWorksheets()">
+                    Generate Worksheets
+                </button>
+                <button class="btn-print" onclick="window.print()" id="printBtn" style="display: none;">
+                    🖨️ Print
+                </button>
+                <button class="btn-pdf" onclick="savePDF()" id="pdfBtn" style="display: none;">
+                    📄 Save as PDF
+                </button>
+            </div>
+            
+            <div class="info-box">
+                <strong>Note:</strong> Each worksheet number generates the same questions every time. 
+                Generate pages 1-5 today, and pages 6-10 next week for fresh problems!
+            </div>
+        </div>
+        
+        <div id="worksheets"></div>
+    </div>
+
+    <script>
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+            }
+            
+            next() {
+                this.seed = (this.seed * 9301 + 49297) % 233280;
+                return this.seed / 233280;
+            }
+        }
+
+        function generateNumber(rng) {
+            const num = rng.next() * 999 + 0.01;
+            const sign = rng.next() < 0.3 ? -1 : 1;
+            return Math.round(num * 100) / 100 * sign;
+        }
+
+        function generateQuestion(rng) {
+            const operations = [
+                { symbol: '×', text: '× 10 ', multiplier: 10 },
+                { symbol: '×', text: '× 100', multiplier: 100 },
+                { symbol: '÷', text: '÷ 10 ', divisor: 10 },
+                { symbol: '÷', text: '÷ 100', divisor: 100 }
+            ];
+            const op = operations[Math.floor(rng.next() * operations.length)];
+            
+            let num, answer;
+            let attempts = 0;
+            
+            do {
+                num = generateNumber(rng);
+                
+                if (op.multiplier) {
+                    answer = num * op.multiplier;
+                } else {
+                    answer = num / op.divisor;
+                }
+                
+                answer = Math.round(answer * 100) / 100;
+                attempts++;
+            } while ((Math.abs(answer) > 999 || Math.abs(answer) < 0.01) && attempts < 100);
+            
+            return {
+                num: num,
+                operation: op.text,
+                answer: answer
+            };
+        }
+
+        function drawWorksheet(canvas, worksheetId, questions, isAnswerKey) {
+            const ctx = canvas.getContext('2d');
+            const dpi = 2;
+            const width = 816;
+            const height = 1056;
+            
+            canvas.width = width * dpi;
+            canvas.height = height * dpi;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            
+            ctx.scale(dpi, dpi);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Header with modern font
+            ctx.fillStyle = '#1f2937';
+            ctx.font = '700 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillText('Multiply & Divide by 10 and 100', 60, 50);
+            
+            ctx.font = '500 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.fillStyle = '#4b5563';
+            ctx.fillText(isAnswerKey ? `Worksheet ${worksheetId} - Answer Key` : `Worksheet ${worksheetId}`, 60, 78);
+            
+            if (!isAnswerKey) {
+                ctx.font = '400 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillStyle = '#6b7280';
+                ctx.fillText('Name: ___________________________', 60, 108);
+                ctx.fillText('Date: ___________________________', 420, 108);
+            }
+            
+            // Header line
+            ctx.strokeStyle = '#d1d5db';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(60, 125);
+            ctx.lineTo(756, 125);
+            ctx.stroke();
+            
+            // Questions with better spacing
+            const startY = 160;
+            const colWidth = 360;
+            const rowHeight = 38;
+            const questionsPerCol = Math.ceil(questions.length / 2);
+            
+            ctx.font = '400 19px ui-monospace, "SF Mono", Monaco, "Cascadia Mono", "Segoe UI Mono", monospace';
+            
+            questions.forEach((q, idx) => {
+                const col = Math.floor(idx / questionsPerCol);
+                const row = idx % questionsPerCol;
+                const x = 60 + col * colWidth;
+                const y = startY + row * rowHeight;
+                
+                // Question number
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText(`${idx + 1}.`, x, y);
+                
+                // Question text with proper spacing
+                ctx.fillStyle = '#1f2937';
+                const questionText = `${q.num.toFixed(2).padStart(7, " ")} ${q.operation} =`;
+                ctx.fillText(questionText, x + 40, y);
+                
+                if (isAnswerKey) {
+                    ctx.fillStyle = '#059669';
+                    ctx.fillText(q.answer.toString(), x + 240, y);
+                } else {
+                    // Answer line
+                    ctx.strokeStyle = '#d1d5db';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 240, y + 5);
+                    ctx.lineTo(x + 340, y + 5);
+                    ctx.stroke();
+                }
+            });
+            
+            // Footer
+            if (!isAnswerKey) {
+                ctx.fillStyle = '#9ca3af';
+                ctx.font = '400 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.fillText(`Page ${worksheetId}`, width / 2 - 20, height - 30);
+            }
+        }
+
+        function generateWorksheets() {
+            const startPage = parseInt(document.getElementById('startPage').value) || 1;
+            const endPage = parseInt(document.getElementById('endPage').value) || 1;
+            const questionsPerSheet = parseInt(document.getElementById('questionsPerSheet').value) || 40;
+            
+            const container = document.getElementById('worksheets');
+            container.innerHTML = '';
+            
+            for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
+                const rng = new SeededRandom(pageNum * 12345);
+                const questions = [];
+                
+                for (let j = 0; j < questionsPerSheet; j++) {
+                    questions.push(generateQuestion(rng));
+                }
+                
+                // Create worksheet canvas
+                const worksheetDiv = document.createElement('div');
+                worksheetDiv.className = 'canvas-container';
+                const worksheetCanvas = document.createElement('canvas');
+                worksheetDiv.appendChild(worksheetCanvas);
+                container.appendChild(worksheetDiv);
+                drawWorksheet(worksheetCanvas, pageNum, questions, false);
+                
+                // Create answer key canvas
+                // const answerDiv = document.createElement('div');
+                // answerDiv.className = 'canvas-container';
+                // const answerCanvas = document.createElement('canvas');
+                // answerDiv.appendChild(answerCanvas);
+                // container.appendChild(answerDiv);
+                // drawWorksheet(answerCanvas, pageNum, questions, true);
+            }
+            
+            document.getElementById('printBtn').style.display = 'flex';
+            document.getElementById('pdfBtn').style.display = 'flex';
+        }
+
+        function savePDF() {
+            alert('To save as PDF: Click the Print button, then select "Save as PDF" as your printer destination.');
+        }
+
+        // Generate first worksheet on load
+        window.addEventListener('load', () => {
+            generateWorksheets();
+        });
+    </script>
+</body>
+</html>
