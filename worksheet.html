@@ -183,7 +183,7 @@
             <div class="input-group">
                 <div class="input-field">
                     <label for="startPage">Start Page:</label>
-                    <input type="number" id="startPage" value="1" min="1">
+                    <input type="number" id="startPage" value="1" min="1" onchange="syncEndPage()">
                 </div>
 
                 <div class="input-field">
@@ -203,9 +203,6 @@
                 </button>
                 <button class="btn-print" onclick="window.print()" id="printBtn" style="display: none;">
                     🖨️ Print
-                </button>
-                <button class="btn-pdf" onclick="savePDF()" id="pdfBtn" style="display: none;">
-                    📄 Save as PDF
                 </button>
             </div>
             
@@ -540,11 +537,15 @@
             }
 
             document.getElementById('printBtn').style.display = 'flex';
-            document.getElementById('pdfBtn').style.display = 'flex';
         }
 
-        function savePDF() {
-            alert('To save as PDF: Click the Print button, then select "Save as PDF" as your printer destination.');
+        function syncEndPage() {
+            const startPage = parseInt(document.getElementById('startPage').value) || 1;
+            const endPage = parseInt(document.getElementById('endPage').value) || 1;
+
+            if (startPage > endPage) {
+                document.getElementById('endPage').value = startPage;
+            }
         }
 
         // Generate first worksheet on load
