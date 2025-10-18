@@ -229,6 +229,47 @@
             }
         }
 
+        // Helper function: Generate fraction based on denominator probability distribution
+        function generateWeightedFraction(rng) {
+            // 95% chance: denominator-based distribution, 5% chance: arbitrary fraction
+            if (rng.next() < 0.95) {
+                // Denominator pool with weights based on P(d) ∝ 1 / (d^α) where α = 0.7
+                const denominators = [2, 4, 5, 10, 20, 25, 50, 100];
+                const alpha = 0.7;
+                const weights = denominators.map(d => 1 / Math.pow(d, alpha));
+                const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+                // Select denominator using weighted random selection
+                let rand = rng.next() * totalWeight;
+                let selectedDenom = denominators[0];
+                for (let i = 0; i < denominators.length; i++) {
+                    rand -= weights[i];
+                    if (rand <= 0) {
+                        selectedDenom = denominators[i];
+                        break;
+                    }
+                }
+
+                // Pick a random numerator that's coprime to denominator (to get non-redundant fractions)
+                const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+                let numerator;
+                let attempts = 0;
+                do {
+                    numerator = Math.floor(rng.next() * selectedDenom);
+                    attempts++;
+                } while ((numerator === 0 || gcd(numerator, selectedDenom) !== 1) && attempts < 100);
+
+                if (numerator === 0) numerator = 1;
+
+                return { numerator, denominator: selectedDenom };
+            } else {
+                // 5% chance: arbitrary fraction up to 100
+                const denominator = Math.floor(rng.next() * 99) + 2; // 2-100
+                const numerator = Math.floor(rng.next() * denominator);
+                return { numerator: numerator === 0 ? 1 : numerator, denominator };
+            }
+        }
+
         // Question type generators - modular design for easy extension
         const questionGenerators = {
             'multiply-divide': {
@@ -266,85 +307,34 @@
             'decimal-to-fraction': {
                 title: 'Convert Decimals to Fractions',
                 generate: function(rng) {
-                    // Interesting fractions that simplify nicely
-                    const interestingFractions = [
-                        // Halves
-                        { decimal: 0.5, fraction: '1/2' },
-                        // Quarters
-                        { decimal: 0.25, fraction: '1/4' },
-                        { decimal: 0.75, fraction: '3/4' },
-                        // Fifths
-                        { decimal: 0.2, fraction: '1/5' },
-                        { decimal: 0.4, fraction: '2/5' },
-                        { decimal: 0.6, fraction: '3/5' },
-                        { decimal: 0.8, fraction: '4/5' },
-                        // Tenths
-                        { decimal: 0.1, fraction: '1/10' },
-                        { decimal: 0.3, fraction: '3/10' },
-                        { decimal: 0.7, fraction: '7/10' },
-                        { decimal: 0.9, fraction: '9/10' },
-                        // Twentieths
-                        { decimal: 0.05, fraction: '1/20' },
-                        { decimal: 0.15, fraction: '3/20' },
-                        { decimal: 0.35, fraction: '7/20' },
-                        { decimal: 0.45, fraction: '9/20' },
-                        { decimal: 0.55, fraction: '11/20' },
-                        { decimal: 0.65, fraction: '13/20' },
-                        { decimal: 0.85, fraction: '17/20' },
-                        { decimal: 0.95, fraction: '19/20' },
-                        // Fiftieths
-                        { decimal: 0.02, fraction: '1/50' },
-                        { decimal: 0.04, fraction: '2/50 = 1/25' },
-                        { decimal: 0.06, fraction: '3/50' },
-                        { decimal: 0.08, fraction: '4/50 = 2/25' },
-                        { decimal: 0.12, fraction: '6/50 = 3/25' },
-                        { decimal: 0.16, fraction: '8/50 = 4/25' },
-                        { decimal: 0.24, fraction: '12/50 = 6/25' },
-                        { decimal: 0.32, fraction: '16/50 = 8/25' },
-                        { decimal: 0.36, fraction: '18/50 = 9/25' },
-                        { decimal: 0.44, fraction: '22/50 = 11/25' },
-                        { decimal: 0.48, fraction: '24/50 = 12/25' },
-                        { decimal: 0.52, fraction: '26/50 = 13/25' },
-                        { decimal: 0.56, fraction: '28/50 = 14/25' },
-                        { decimal: 0.64, fraction: '32/50 = 16/25' },
-                        { decimal: 0.68, fraction: '34/50 = 17/25' },
-                        { decimal: 0.72, fraction: '36/50 = 18/25' },
-                        { decimal: 0.76, fraction: '38/50 = 19/25' },
-                        { decimal: 0.84, fraction: '42/50 = 21/25' },
-                        { decimal: 0.88, fraction: '44/50 = 22/25' },
-                        { decimal: 0.92, fraction: '46/50 = 23/25' },
-                        { decimal: 0.96, fraction: '48/50 = 24/25' },
-                        { decimal: 0.98, fraction: '49/50' }
-                    ];
+                    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 
-                    // 80% chance of interesting fraction, 20% chance of random
-                    let decimal, answer;
-                    if (rng.next() < 0.8) {
-                        const item = interestingFractions[Math.floor(rng.next() * interestingFractions.length)];
-                        decimal = item.decimal;
-                        answer = item.fraction;
-                    } else {
-                        // Random decimal with 2 decimal places
-                        decimal = Math.floor(rng.next() * 100) / 100;
-                        if (decimal === 0) decimal = 0.01;
-                        // Calculate simplified fraction (basic simplification)
-                        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
-                        const numerator = Math.round(decimal * 100);
-                        const denominator = 100;
-                        const divisor = gcd(numerator, denominator);
-                        answer = `${numerator / divisor}/${denominator / divisor}`;
-                    }
+                    // Generate fraction using weighted distribution
+                    const frac = generateWeightedFraction(rng);
+                    const decimal = frac.numerator / frac.denominator;
+
+                    // Simplify and format answer
+                    const divisor = gcd(frac.numerator, frac.denominator);
+                    const simplifiedNum = frac.numerator / divisor;
+                    const simplifiedDenom = frac.denominator / divisor;
 
                     // Add whole number part (0-99)
                     const wholePart = Math.floor(rng.next() * 100);
                     const finalDecimal = wholePart + decimal;
 
+                    // Format decimal: remove trailing zero if present, replace with space for alignment
+                    let decimalStr = finalDecimal.toFixed(2);
+                    if (decimalStr.endsWith('0') && decimalStr.includes('.')) {
+                        decimalStr = decimalStr.slice(0, -1) + ' ';
+                    }
+
+                    let answer = `${simplifiedNum}/${simplifiedDenom}`;
                     if (wholePart > 0) {
                         answer = `${wholePart} ${answer}`;
                     }
 
                     return {
-                        question: finalDecimal.toFixed(2),
+                        question: decimalStr,
                         answer: answer
                     };
                 }
@@ -353,60 +343,24 @@
             'fraction-to-decimal': {
                 title: 'Convert Fractions to Decimals',
                 generate: function(rng) {
-                    // Same interesting fractions as decimal-to-fraction
-                    const interestingFractions = [
-                        { fraction: '1/2', decimal: 0.5 },
-                        { fraction: '1/4', decimal: 0.25 },
-                        { fraction: '3/4', decimal: 0.75 },
-                        { fraction: '1/5', decimal: 0.2 },
-                        { fraction: '2/5', decimal: 0.4 },
-                        { fraction: '3/5', decimal: 0.6 },
-                        { fraction: '4/5', decimal: 0.8 },
-                        { fraction: '1/10', decimal: 0.1 },
-                        { fraction: '3/10', decimal: 0.3 },
-                        { fraction: '7/10', decimal: 0.7 },
-                        { fraction: '9/10', decimal: 0.9 },
-                        { fraction: '1/20', decimal: 0.05 },
-                        { fraction: '3/20', decimal: 0.15 },
-                        { fraction: '7/20', decimal: 0.35 },
-                        { fraction: '9/20', decimal: 0.45 },
-                        { fraction: '11/20', decimal: 0.55 },
-                        { fraction: '13/20', decimal: 0.65 },
-                        { fraction: '17/20', decimal: 0.85 },
-                        { fraction: '19/20', decimal: 0.95 },
-                        { fraction: '1/50', decimal: 0.02 },
-                        { fraction: '1/25', decimal: 0.04 },
-                        { fraction: '3/50', decimal: 0.06 },
-                        { fraction: '2/25', decimal: 0.08 },
-                        { fraction: '3/25', decimal: 0.12 },
-                        { fraction: '4/25', decimal: 0.16 },
-                        { fraction: '6/25', decimal: 0.24 },
-                        { fraction: '8/25', decimal: 0.32 },
-                        { fraction: '9/25', decimal: 0.36 },
-                        { fraction: '11/25', decimal: 0.44 },
-                        { fraction: '12/25', decimal: 0.48 },
-                        { fraction: '13/25', decimal: 0.52 },
-                        { fraction: '14/25', decimal: 0.56 },
-                        { fraction: '16/25', decimal: 0.64 },
-                        { fraction: '17/25', decimal: 0.68 },
-                        { fraction: '18/25', decimal: 0.72 },
-                        { fraction: '19/25', decimal: 0.76 },
-                        { fraction: '21/25', decimal: 0.84 },
-                        { fraction: '22/25', decimal: 0.88 },
-                        { fraction: '23/25', decimal: 0.92 },
-                        { fraction: '24/25', decimal: 0.96 },
-                        { fraction: '49/50', decimal: 0.98 }
-                    ];
+                    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 
-                    const item = interestingFractions[Math.floor(rng.next() * interestingFractions.length)];
+                    // Generate fraction using weighted distribution
+                    const frac = generateWeightedFraction(rng);
+                    const decimal = frac.numerator / frac.denominator;
+
+                    // Simplify fraction for display
+                    const divisor = gcd(frac.numerator, frac.denominator);
+                    const simplifiedNum = frac.numerator / divisor;
+                    const simplifiedDenom = frac.denominator / divisor;
 
                     // Add whole number part (0-99)
                     const wholePart = Math.floor(rng.next() * 100);
-                    const finalDecimal = wholePart + item.decimal;
+                    const finalDecimal = wholePart + decimal;
 
-                    let question = item.fraction;
+                    let question = `${simplifiedNum}/${simplifiedDenom}`;
                     if (wholePart > 0) {
-                        question = `${wholePart} ${item.fraction}`;
+                        question = `${wholePart} ${question}`;
                     }
 
                     return {
