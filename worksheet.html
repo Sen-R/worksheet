@@ -175,6 +175,7 @@
                         <option value="multiply-divide">Multiply & Divide by 10 and 100</option>
                         <option value="decimal-to-fraction">Convert Decimals to Fractions</option>
                         <option value="fraction-to-decimal">Convert Fractions to Decimals</option>
+                        <option value="times-tables">Times Tables Practice (up to 12×12)</option>
                     </select>
                 </div>
             </div>
@@ -366,6 +367,50 @@
                     return {
                         question: question,
                         answer: finalDecimal.toFixed(2)
+                    };
+                }
+            },
+
+            'times-tables': {
+                title: 'Times Tables Practice (up to 12×12)',
+                generate: function(rng) {
+                    // Weighted distribution for multiplication tables
+                    // Tier 1 (15%): Easy - 1, 2, 10, 11
+                    // Tier 2 (25%): Moderate - 3, 4, 5
+                    // Tier 3 (45%): Challenging - 6, 7, 8, 9
+                    // Tier 4 (15%): Advanced - 12
+
+                    const tiers = [
+                        { numbers: [1, 2, 10, 11], weight: 0.15 },
+                        { numbers: [3, 4, 5], weight: 0.25 },
+                        { numbers: [6, 7, 8, 9], weight: 0.45 },
+                        { numbers: [12], weight: 0.15 }
+                    ];
+
+                    // Select tier based on weights
+                    let rand = rng.next();
+                    let selectedTier = tiers[0];
+                    let cumulative = 0;
+                    for (const tier of tiers) {
+                        cumulative += tier.weight;
+                        if (rand < cumulative) {
+                            selectedTier = tier;
+                            break;
+                        }
+                    }
+
+                    // Pick a random number from the selected tier for first operand
+                    const num1 = selectedTier.numbers[Math.floor(rng.next() * selectedTier.numbers.length)];
+
+                    // Pick a second number from 1-12 (uniform distribution)
+                    const num2 = Math.floor(rng.next() * 12) + 1;
+
+                    // Randomly swap order so the weighted number isn't always first
+                    const [a, b] = rng.next() < 0.5 ? [num1, num2] : [num2, num1];
+
+                    return {
+                        question: `${a} × ${b} =`,
+                        answer: a * b
                     };
                 }
             }
