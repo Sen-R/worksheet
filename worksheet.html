@@ -182,6 +182,11 @@
             white-space: nowrap;
         }
 
+        /* Extra spacing for fraction-to-decimal worksheets due to taller MathML fractions */
+        .worksheet[data-worksheet-type="fraction-to-decimal"] .question-item {
+            margin-bottom: 26px;
+        }
+
         .question-number {
             color: #9ca3af;
             font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
@@ -224,11 +229,25 @@
         /* MathML fraction styling */
         math {
             font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
-            font-size: 19px;
+            font-size: 21px;
         }
 
+        /* Whole number part should be larger with space after it */
+        math > mn:first-child {
+            font-size: 23px !important;
+            margin-right: 4px;
+        }
+
+        /* Fraction spacing */
         mfrac {
-            font-size: 19px;
+            margin: 6px 0 !important;
+        }
+
+        /* Numerator and denominator should be larger */
+        mfrac > mn {
+            display: block;
+            padding: 2px 0;
+            font-size: 18px !important;
         }
 
         /* Print styles */
@@ -272,7 +291,7 @@
             <div class="input-group">
                 <div class="input-field">
                     <label for="worksheetType">Worksheet Type:</label>
-                    <select id="worksheetType" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; width: 250px;">
+                    <select id="worksheetType" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; width: 250px;" onchange="updateDefaultQuestions()">
                         <option value="multiply-divide">Multiply & Divide by 10 and 100</option>
                         <option value="decimal-to-fraction">Convert Decimals to Fractions</option>
                         <option value="fraction-to-decimal">Convert Fractions to Decimals</option>
@@ -395,6 +414,7 @@
         const questionGenerators = {
             'multiply-divide': {
                 title: 'Multiply & Divide by 10 and 100',
+                defaultQuestions: 40,
                 generate: function(rng) {
                     const num = (rng.next() * 999 + 0.01) * (rng.next() < 0.3 ? -1 : 1);
                     const roundedNum = Math.round(num * 100) / 100;
@@ -427,6 +447,7 @@
 
             'decimal-to-fraction': {
                 title: 'Convert Decimals to Fractions',
+                defaultQuestions: 40,
                 generate: function(rng) {
                     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 
@@ -463,6 +484,7 @@
 
             'fraction-to-decimal': {
                 title: 'Convert Fractions to Decimals',
+                defaultQuestions: 24,
                 generate: function(rng) {
                     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
 
@@ -489,6 +511,7 @@
 
             'times-tables': {
                 title: 'Times Tables Practice (up to 12×12)',
+                defaultQuestions: 40,
                 generate: function(rng) {
                     // Weighted distribution for multiplication tables
                     // Tier 1 (15%): Easy - 1, 2, 10, 11
@@ -532,9 +555,10 @@
             }
         };
 
-        function createWorksheet(worksheetId, questions, isAnswerKey, title) {
+        function createWorksheet(worksheetId, questions, isAnswerKey, title, worksheetType) {
             const worksheet = document.createElement('div');
             worksheet.className = 'worksheet';
+            worksheet.setAttribute('data-worksheet-type', worksheetType);
 
             // Header
             const header = document.createElement('div');
@@ -642,11 +666,11 @@
                 }
 
                 // Create worksheet
-                const worksheet = createWorksheet(pageNum, questions, false, generator.title);
+                const worksheet = createWorksheet(pageNum, questions, false, generator.title, worksheetType);
                 container.appendChild(worksheet);
 
                 // Create answer key (commented out by default)
-                // const answerKey = createWorksheet(pageNum, questions, true, generator.title);
+                // const answerKey = createWorksheet(pageNum, questions, true, generator.title, worksheetType);
                 // container.appendChild(answerKey);
             }
 
@@ -662,8 +686,18 @@
             }
         }
 
+        function updateDefaultQuestions() {
+            const worksheetType = document.getElementById('worksheetType').value;
+            const generator = questionGenerators[worksheetType];
+            if (generator && generator.defaultQuestions) {
+                document.getElementById('questionsPerSheet').value = generator.defaultQuestions;
+                document.getElementById('questionsPerSheet').max = generator.defaultQuestions;
+            }
+        }
+
         // Generate first worksheet on load
         window.addEventListener('load', () => {
+            updateDefaultQuestions();
             generateWorksheets();
         });
     </script>
