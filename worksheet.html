@@ -107,15 +107,6 @@
             background: #059669;
         }
 
-        .btn-pdf {
-            background: #8b5cf6;
-            color: white;
-        }
-
-        .btn-pdf:hover {
-            background: #7c3aed;
-        }
-
         .info-box {
             background: #eff6ff;
             padding: 1rem;
@@ -125,40 +116,150 @@
             color: #1e40af;
         }
 
-        .canvas-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 2rem;
-        }
-
-        canvas {
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        /* Worksheet styles */
+        .worksheet {
             background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 2rem auto;
+            padding: 15mm 15mm;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
+        .worksheet-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #d1d5db;
+        }
+
+        .worksheet-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .worksheet-subtitle {
+            font-size: 18px;
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 12px;
+        }
+
+        .worksheet-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            color: #6b7280;
+        }
+
+        .worksheet-info-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .worksheet-info-line {
+            border-bottom: 1px solid #d1d5db;
+            min-width: 200px;
+            display: inline-block;
+            padding-bottom: 2px;
+        }
+
+        .questions-container {
+            column-count: 2;
+            column-gap: 25px;
+            margin-top: 25px;
+        }
+
+        .question-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            white-space: nowrap;
+        }
+
+        .question-number {
+            color: #9ca3af;
+            font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+            font-size: 19px;
+            min-width: 35px;
+            flex-shrink: 0;
+        }
+
+        .question-text {
+            font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+            font-size: 19px;
+            color: #1f2937;
+            flex-shrink: 0;
+        }
+
+        .question-answer {
+            border-bottom: 1px solid #d1d5db;
+            min-width: 85px;
+            height: 22px;
+            margin-left: 12px;
+            flex-shrink: 0;
+        }
+
+        .question-answer.show-answer {
+            border: none;
+            color: #059669;
+            font-weight: 500;
+        }
+
+        .worksheet-footer {
+            position: absolute;
+            bottom: 15mm;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 12px;
+        }
+
+        /* MathML fraction styling */
+        math {
+            font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+            font-size: 19px;
+        }
+
+        mfrac {
+            font-size: 19px;
+        }
+
+        /* Print styles */
         @media print {
             body {
                 background: white;
                 padding: 0;
             }
+
             .controls {
-                display: none;
+                display: none !important;
             }
-            .canvas-container {
+
+            .worksheet {
+                box-shadow: none;
                 margin: 0;
                 page-break-after: always;
+                break-after: page;
             }
-            canvas {
-                width: 210mm !important;
-                height: 297mm !important;
-                max-width: 100%;
-                border: none;
-                box-shadow: none;
-            }
+
             @page {
                 margin: 0;
                 size: A4 portrait;
+            }
+        }
+
+        @media screen {
+            #worksheets {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
             }
         }
     </style>
@@ -167,7 +268,7 @@
     <div class="container">
         <div class="controls">
             <h1>Maths Worksheet Generator</h1>
-            
+
             <div class="input-group">
                 <div class="input-field">
                     <label for="worksheetType">Worksheet Type:</label>
@@ -196,7 +297,7 @@
                     <input type="number" id="questionsPerSheet" value="40" min="10" max="40">
                 </div>
             </div>
-            
+
             <div class="button-group">
                 <button class="btn-generate" onclick="generateWorksheets()">
                     Generate Worksheets
@@ -205,13 +306,13 @@
                     🖨️ Print
                 </button>
             </div>
-            
+
             <div class="info-box">
-                <strong>Note:</strong> Each worksheet number generates the same questions every time. 
+                <strong>Note:</strong> Each worksheet number generates the same questions every time.
                 Generate pages 1-5 today, and pages 6-10 next week for fresh problems!
             </div>
         </div>
-        
+
         <div id="worksheets"></div>
     </div>
 
@@ -220,7 +321,7 @@
             constructor(seed) {
                 this.seed = seed;
             }
-            
+
             next() {
                 this.seed = (this.seed * 9301 + 49297) % 233280;
                 return this.seed / 233280;
@@ -265,6 +366,28 @@
                 const denominator = Math.floor(rng.next() * 99) + 2; // 2-100
                 const numerator = Math.floor(rng.next() * denominator);
                 return { numerator: numerator === 0 ? 1 : numerator, denominator };
+            }
+        }
+
+        // Helper function to create MathML fraction
+        function createMathMLFraction(wholePart, numerator, denominator) {
+            if (wholePart > 0) {
+                // Mixed number: whole + fraction
+                return `<math xmlns="http://www.w3.org/1998/Math/MathML">
+                    <mn>${wholePart}</mn>
+                    <mfrac>
+                        <mn>${numerator}</mn>
+                        <mn>${denominator}</mn>
+                    </mfrac>
+                </math>`;
+            } else {
+                // Just fraction
+                return `<math xmlns="http://www.w3.org/1998/Math/MathML">
+                    <mfrac>
+                        <mn>${numerator}</mn>
+                        <mn>${denominator}</mn>
+                    </mfrac>
+                </math>`;
             }
         }
 
@@ -356,14 +479,10 @@
                     const wholePart = Math.floor(rng.next() * 100);
                     const finalDecimal = wholePart + decimal;
 
-                    let question = `${simplifiedNum}/${simplifiedDenom}`;
-                    if (wholePart > 0) {
-                        question = `${wholePart} ${question}`;
-                    }
-
                     return {
-                        question: question,
-                        answer: finalDecimal.toFixed(2)
+                        question: createMathMLFraction(wholePart, simplifiedNum, simplifiedDenom),
+                        answer: finalDecimal.toFixed(2),
+                        isMathML: true
                     };
                 }
             },
@@ -413,87 +532,90 @@
             }
         };
 
-        function drawWorksheet(canvas, worksheetId, questions, isAnswerKey, title) {
-            const ctx = canvas.getContext('2d');
-            const dpi = 2;
-            const width = 816;
-            const height = 1056;
+        function createWorksheet(worksheetId, questions, isAnswerKey, title) {
+            const worksheet = document.createElement('div');
+            worksheet.className = 'worksheet';
 
-            canvas.width = width * dpi;
-            canvas.height = height * dpi;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
+            // Header
+            const header = document.createElement('div');
+            header.className = 'worksheet-header';
 
-            ctx.scale(dpi, dpi);
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, width, height);
+            const titleElem = document.createElement('div');
+            titleElem.className = 'worksheet-title';
+            titleElem.textContent = title;
 
-            // Header with modern font
-            ctx.fillStyle = '#1f2937';
-            ctx.font = '700 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillText(title, 60, 50);
+            const subtitle = document.createElement('div');
+            subtitle.className = 'worksheet-subtitle';
+            subtitle.textContent = isAnswerKey ? `Worksheet ${worksheetId} - Answer Key` : `Worksheet ${worksheetId}`;
 
-            ctx.font = '500 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-            ctx.fillStyle = '#4b5563';
-            ctx.fillText(isAnswerKey ? `Worksheet ${worksheetId} - Answer Key` : `Worksheet ${worksheetId}`, 60, 78);
+            header.appendChild(titleElem);
+            header.appendChild(subtitle);
 
             if (!isAnswerKey) {
-                ctx.font = '400 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                ctx.fillStyle = '#6b7280';
-                ctx.fillText('Name: ___________________________', 60, 108);
-                ctx.fillText('Date: ___________________________', 420, 108);
+                const info = document.createElement('div');
+                info.className = 'worksheet-info';
+
+                const nameItem = document.createElement('div');
+                nameItem.className = 'worksheet-info-item';
+                nameItem.innerHTML = 'Name: <span class="worksheet-info-line"></span>';
+
+                const dateItem = document.createElement('div');
+                dateItem.className = 'worksheet-info-item';
+                dateItem.innerHTML = 'Date: <span class="worksheet-info-line"></span>';
+
+                info.appendChild(nameItem);
+                info.appendChild(dateItem);
+                header.appendChild(info);
             }
 
-            // Header line
-            ctx.strokeStyle = '#d1d5db';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(60, 125);
-            ctx.lineTo(756, 125);
-            ctx.stroke();
+            worksheet.appendChild(header);
 
-            // Questions with better spacing
-            const startY = 160;
-            const colWidth = 360;
-            const rowHeight = 38;
-            const questionsPerCol = Math.ceil(questions.length / 2);
-
-            ctx.font = '400 19px ui-monospace, "SF Mono", Monaco, "Cascadia Mono", "Segoe UI Mono", monospace';
+            // Questions
+            const questionsContainer = document.createElement('div');
+            questionsContainer.className = 'questions-container';
 
             questions.forEach((q, idx) => {
-                const col = Math.floor(idx / questionsPerCol);
-                const row = idx % questionsPerCol;
-                const x = 60 + col * colWidth;
-                const y = startY + row * rowHeight;
+                const questionItem = document.createElement('div');
+                questionItem.className = 'question-item';
 
-                // Question number
-                ctx.fillStyle = '#9ca3af';
-                ctx.fillText(`${idx + 1}.`, x, y);
+                const questionNumber = document.createElement('div');
+                questionNumber.className = 'question-number';
+                questionNumber.textContent = `${idx + 1}.`;
 
-                // Question text with proper spacing
-                ctx.fillStyle = '#1f2937';
-                ctx.fillText(q.question, x + 40, y);
+                const questionText = document.createElement('div');
+                questionText.className = 'question-text';
 
-                if (isAnswerKey) {
-                    ctx.fillStyle = '#059669';
-                    ctx.fillText(q.answer.toString(), x + 240, y);
+                if (q.isMathML) {
+                    questionText.innerHTML = q.question;
                 } else {
-                    // Answer line
-                    ctx.strokeStyle = '#d1d5db';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(x + 240, y + 5);
-                    ctx.lineTo(x + 340, y + 5);
-                    ctx.stroke();
+                    questionText.textContent = q.question;
                 }
+
+                const answerSpace = document.createElement('div');
+                answerSpace.className = 'question-answer';
+                if (isAnswerKey) {
+                    answerSpace.classList.add('show-answer');
+                    answerSpace.textContent = q.answer.toString();
+                }
+
+                questionItem.appendChild(questionNumber);
+                questionItem.appendChild(questionText);
+                questionItem.appendChild(answerSpace);
+
+                questionsContainer.appendChild(questionItem);
             });
+
+            worksheet.appendChild(questionsContainer);
 
             // Footer
             if (!isAnswerKey) {
-                ctx.fillStyle = '#9ca3af';
-                ctx.font = '400 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-                ctx.fillText(`Page ${worksheetId}`, width / 2 - 20, height - 30);
+                const footer = document.createElement('div');
+                footer.className = 'worksheet-footer';
+                footer.textContent = `Page ${worksheetId}`;
+                worksheet.appendChild(footer);
             }
+
+            return worksheet;
         }
 
         function generateWorksheets() {
@@ -519,21 +641,13 @@
                     questions.push(generator.generate(rng));
                 }
 
-                // Create worksheet canvas
-                const worksheetDiv = document.createElement('div');
-                worksheetDiv.className = 'canvas-container';
-                const worksheetCanvas = document.createElement('canvas');
-                worksheetDiv.appendChild(worksheetCanvas);
-                container.appendChild(worksheetDiv);
-                drawWorksheet(worksheetCanvas, pageNum, questions, false, generator.title);
+                // Create worksheet
+                const worksheet = createWorksheet(pageNum, questions, false, generator.title);
+                container.appendChild(worksheet);
 
-                // Create answer key canvas
-                // const answerDiv = document.createElement('div');
-                // answerDiv.className = 'canvas-container';
-                // const answerCanvas = document.createElement('canvas');
-                // answerDiv.appendChild(answerCanvas);
-                // container.appendChild(answerDiv);
-                // drawWorksheet(answerCanvas, pageNum, questions, true, generator.title);
+                // Create answer key (commented out by default)
+                // const answerKey = createWorksheet(pageNum, questions, true, generator.title);
+                // container.appendChild(answerKey);
             }
 
             document.getElementById('printBtn').style.display = 'flex';
