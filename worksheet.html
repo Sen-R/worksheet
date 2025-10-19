@@ -187,6 +187,18 @@
             margin-bottom: 26px;
         }
 
+        /* Extra spacing for add/subtract fractions (MathML + working space) */
+        .worksheet[data-worksheet-type="add-subtract-fractions"] .question-item,
+        .worksheet[data-worksheet-type="simplify-fractions"] .question-item,
+        .worksheet[data-worksheet-type="improper-to-mixed"] .question-item {
+            margin-bottom: 26px;
+        }
+
+        /* Lots of extra spacing for long addition/subtraction (needs working space) */
+        .worksheet[data-worksheet-type="long-addition-subtraction"] .question-item {
+            margin-bottom: 120px;
+        }
+
         .question-number {
             color: #9ca3af;
             font-family: ui-monospace, 'SF Mono', Monaco, 'Cascadia Mono', 'Segoe UI Mono', monospace;
@@ -214,16 +226,6 @@
             border: none;
             color: #059669;
             font-weight: 500;
-        }
-
-        .worksheet-footer {
-            position: absolute;
-            bottom: 15mm;
-            left: 0;
-            right: 0;
-            text-align: center;
-            color: #9ca3af;
-            font-size: 12px;
         }
 
         /* MathML fraction styling */
@@ -291,11 +293,19 @@
             <div class="input-group">
                 <div class="input-field">
                     <label for="worksheetType">Worksheet Type:</label>
-                    <select id="worksheetType" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; width: 250px;" onchange="updateDefaultQuestions()">
-                        <option value="multiply-divide">Multiply & Divide by 10 and 100</option>
-                        <option value="decimal-to-fraction">Convert Decimals to Fractions</option>
-                        <option value="fraction-to-decimal">Convert Fractions to Decimals</option>
-                        <option value="times-tables">Times Tables Practice (up to 12×12)</option>
+                    <select id="worksheetType" style="padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 1rem; width: 300px;" onchange="updateDefaultQuestions()">
+                        <optgroup label="Fractions">
+                            <option value="decimal-to-fraction">Decimals to Fractions</option>
+                            <option value="fraction-to-decimal">Fractions to Decimals</option>
+                            <option value="simplify-fractions">Simplify Fractions</option>
+                            <option value="improper-to-mixed">Improper to Mixed Numbers</option>
+                            <option value="add-subtract-fractions">Add & Subtract Fractions</option>
+                        </optgroup>
+                        <optgroup label="Arithmetic">
+                            <option value="multiply-divide">Multiply & Divide by 10/100</option>
+                            <option value="times-tables">Times Tables (up to 12×12)</option>
+                            <option value="long-addition-subtraction">Long Addition & Subtraction</option>
+                        </optgroup>
                     </select>
                 </div>
             </div>
@@ -552,6 +562,236 @@
                         answer: a * b
                     };
                 }
+            },
+
+            'simplify-fractions': {
+                title: 'Simplify Fractions',
+                defaultQuestions: 30,
+                generate: function(rng) {
+                    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+
+                    // Use weighted distribution for denominators
+                    const denominators = [2, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 50, 100];
+                    const alpha = 0.7;
+                    const weights = denominators.map(d => 1 / Math.pow(d, alpha));
+                    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+                    let rand = rng.next() * totalWeight;
+                    let selectedDenom = denominators[0];
+                    for (let i = 0; i < denominators.length; i++) {
+                        rand -= weights[i];
+                        if (rand <= 0) {
+                            selectedDenom = denominators[i];
+                            break;
+                        }
+                    }
+
+                    // Pick a numerator that creates a non-simplified fraction
+                    // Find all factors of the denominator > 1
+                    const factors = [];
+                    for (let i = 2; i <= selectedDenom / 2; i++) {
+                        if (selectedDenom % i === 0) {
+                            factors.push(i);
+                        }
+                    }
+
+                    if (factors.length === 0) {
+                        // Prime denominator, can't create non-simplified fraction, try again with composite
+                        selectedDenom = [4, 6, 8, 10, 12][Math.floor(rng.next() * 5)];
+                        factors.length = 0;
+                        for (let i = 2; i <= selectedDenom / 2; i++) {
+                            if (selectedDenom % i === 0) {
+                                factors.push(i);
+                            }
+                        }
+                    }
+
+                    const commonFactor = factors[Math.floor(rng.next() * factors.length)];
+                    const simplifiedDenom = selectedDenom / commonFactor;
+
+                    // Pick a numerator for the simplified form (can be larger than denom for improper fractions)
+                    const maxSimplifiedNum = rng.next() < 0.3 ? simplifiedDenom * 3 : simplifiedDenom - 1;
+                    const simplifiedNum = Math.floor(rng.next() * maxSimplifiedNum) + 1;
+
+                    const unsimplifiedNum = simplifiedNum * commonFactor;
+                    const unsimplifiedDenom = selectedDenom;
+
+                    // Format as MathML
+                    const questionMathML = `<math xmlns="http://www.w3.org/1998/Math/MathML">
+                        <mfrac>
+                            <mn>${unsimplifiedNum}</mn>
+                            <mn>${unsimplifiedDenom}</mn>
+                        </mfrac>
+                    </math>`;
+
+                    // Answer as text
+                    let answer;
+                    if (simplifiedNum >= simplifiedDenom) {
+                        const wholePart = Math.floor(simplifiedNum / simplifiedDenom);
+                        const remainder = simplifiedNum % simplifiedDenom;
+                        if (remainder === 0) {
+                            answer = `${wholePart}`;
+                        } else {
+                            answer = `${wholePart} ${remainder}/${simplifiedDenom}`;
+                        }
+                    } else {
+                        answer = `${simplifiedNum}/${simplifiedDenom}`;
+                    }
+
+                    return {
+                        question: questionMathML,
+                        answer: answer,
+                        isMathML: true
+                    };
+                }
+            },
+
+            'improper-to-mixed': {
+                title: 'Convert Improper Fractions to Mixed Numbers',
+                defaultQuestions: 30,
+                generate: function(rng) {
+                    // Use weighted distribution for denominators
+                    const denominators = [2, 3, 4, 5, 6, 8, 10, 12];
+                    const alpha = 0.7;
+                    const weights = denominators.map(d => 1 / Math.pow(d, alpha));
+                    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+                    let rand = rng.next() * totalWeight;
+                    let selectedDenom = denominators[0];
+                    for (let i = 0; i < denominators.length; i++) {
+                        rand -= weights[i];
+                        if (rand <= 0) {
+                            selectedDenom = denominators[i];
+                            break;
+                        }
+                    }
+
+                    // Create improper fraction (numerator > denominator)
+                    const wholePart = Math.floor(rng.next() * 5) + 1; // 1-5
+                    const remainder = Math.floor(rng.next() * (selectedDenom - 1)) + 1; // 1 to denom-1
+                    const numerator = wholePart * selectedDenom + remainder;
+
+                    const questionMathML = `<math xmlns="http://www.w3.org/1998/Math/MathML">
+                        <mfrac>
+                            <mn>${numerator}</mn>
+                            <mn>${selectedDenom}</mn>
+                        </mfrac>
+                    </math>`;
+
+                    const answer = `${wholePart} ${remainder}/${selectedDenom}`;
+
+                    return {
+                        question: questionMathML,
+                        answer: answer,
+                        isMathML: true
+                    };
+                }
+            },
+
+            'add-subtract-fractions': {
+                title: 'Add and Subtract Fractions',
+                defaultQuestions: 20,
+                generate: function(rng) {
+                    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+                    const commonDenominators = [2, 3, 4, 5, 6, 8, 10];
+
+                    const denominator = commonDenominators[Math.floor(rng.next() * commonDenominators.length)];
+                    const operation = rng.next() < 0.5 ? '+' : '-';
+
+                    // Generate two fractions (possibly with whole parts)
+                    const whole1 = rng.next() < 0.4 ? Math.floor(rng.next() * 5) : 0;
+                    const num1 = Math.floor(rng.next() * (denominator - 1)) + 1;
+
+                    const whole2 = rng.next() < 0.4 ? Math.floor(rng.next() * 5) : 0;
+                    const num2 = Math.floor(rng.next() * (denominator - 1)) + 1;
+
+                    // For subtraction, ensure first fraction is larger
+                    let frac1Whole = whole1, frac1Num = num1;
+                    let frac2Whole = whole2, frac2Num = num2;
+
+                    if (operation === '-') {
+                        const total1 = whole1 * denominator + num1;
+                        const total2 = whole2 * denominator + num2;
+                        if (total1 < total2) {
+                            [frac1Whole, frac1Num, frac2Whole, frac2Num] = [frac2Whole, frac2Num, frac1Whole, frac1Num];
+                        }
+                    }
+
+                    // Build question MathML
+                    const frac1HTML = frac1Whole > 0
+                        ? `<mn>${frac1Whole}</mn><mfrac><mn>${frac1Num}</mn><mn>${denominator}</mn></mfrac>`
+                        : `<mfrac><mn>${frac1Num}</mn><mn>${denominator}</mn></mfrac>`;
+
+                    const frac2HTML = frac2Whole > 0
+                        ? `<mn>${frac2Whole}</mn><mfrac><mn>${frac2Num}</mn><mn>${denominator}</mn></mfrac>`
+                        : `<mfrac><mn>${frac2Num}</mn><mn>${denominator}</mn></mfrac>`;
+
+                    const questionMathML = `<math xmlns="http://www.w3.org/1998/Math/MathML">
+                        ${frac1HTML}
+                        <mo>${operation}</mo>
+                        ${frac2HTML}
+                        <mo>=</mo>
+                    </math>`;
+
+                    // Calculate answer
+                    const total1 = frac1Whole * denominator + frac1Num;
+                    const total2 = frac2Whole * denominator + frac2Num;
+                    const resultTotal = operation === '+' ? total1 + total2 : total1 - total2;
+
+                    // Simplify
+                    const resultWhole = Math.floor(resultTotal / denominator);
+                    const resultNum = resultTotal % denominator;
+                    const divisor = gcd(resultNum, denominator);
+                    const simplifiedNum = resultNum / divisor;
+                    const simplifiedDenom = denominator / divisor;
+
+                    let answer;
+                    if (resultNum === 0) {
+                        answer = `${resultWhole}`;
+                    } else if (resultWhole === 0) {
+                        answer = `${simplifiedNum}/${simplifiedDenom}`;
+                    } else {
+                        answer = `${resultWhole} ${simplifiedNum}/${simplifiedDenom}`;
+                    }
+
+                    return {
+                        question: questionMathML,
+                        answer: answer,
+                        isMathML: true
+                    };
+                }
+            },
+
+            'long-addition-subtraction': {
+                title: 'Long Addition and Subtraction',
+                defaultQuestions: 12,
+                generate: function(rng) {
+                    const operation = rng.next() < 0.5 ? '+' : '-';
+
+                    // Generate numbers with 1-3 digits before decimal, 0-2 after
+                    const decimals = Math.floor(rng.next() * 3); // 0, 1, or 2
+
+                    const num1 = rng.next() * 999 + 1;
+                    const num2 = rng.next() * 999 + 1;
+
+                    const rounded1 = Math.round(num1 * Math.pow(10, decimals)) / Math.pow(10, decimals);
+                    const rounded2 = Math.round(num2 * Math.pow(10, decimals)) / Math.pow(10, decimals);
+
+                    // For subtraction, ensure first number is larger
+                    let [n1, n2] = operation === '-' && rounded1 < rounded2
+                        ? [rounded2, rounded1]
+                        : [rounded1, rounded2];
+
+                    const result = operation === '+' ? n1 + n2 : n1 - n2;
+                    const answer = result.toFixed(decimals);
+
+                    const question = `${n1.toFixed(decimals)} ${operation} ${n2.toFixed(decimals)} =`;
+
+                    return {
+                        question: question,
+                        answer: answer
+                    };
+                }
             }
         };
 
@@ -630,14 +870,6 @@
             });
 
             worksheet.appendChild(questionsContainer);
-
-            // Footer
-            if (!isAnswerKey) {
-                const footer = document.createElement('div');
-                footer.className = 'worksheet-footer';
-                footer.textContent = `Page ${worksheetId}`;
-                worksheet.appendChild(footer);
-            }
 
             return worksheet;
         }
