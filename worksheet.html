@@ -305,6 +305,7 @@
                             <option value="multiply-divide">Multiply & Divide by 10/100</option>
                             <option value="times-tables">Times Tables (up to 12×12)</option>
                             <option value="long-addition-subtraction">Long Addition & Subtraction</option>
+                            <option value="negative-numbers">Negative Numbers (+, -, ×, ÷)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -789,6 +790,54 @@
 
                     return {
                         question: question,
+                        answer: answer
+                    };
+                }
+            },
+
+            'negative-numbers': {
+                title: 'Negative Numbers (+, -, ×, ÷)',
+                defaultQuestions: 30,
+                generate: function(rng) {
+                    const operations = ['+', '-', '×', '÷'];
+                    const op = operations[Math.floor(rng.next() * operations.length)];
+
+                    // Assign signs so at least one operand is negative
+                    function makeNegative(rng, a, b) {
+                        const r = rng.next();
+                        if (r < 0.34) return [-a, b];
+                        if (r < 0.67) return [a, -b];
+                        return [-a, -b];
+                    }
+
+                    let a, b, answer;
+
+                    if (op === '÷') {
+                        // Generate division with integer result
+                        // Divisor 2-10, quotient chosen so |dividend| ≤ 20
+                        const absB = Math.floor(rng.next() * 9) + 2;
+                        const maxQ = Math.floor(20 / absB);
+                        const absQ = Math.floor(rng.next() * maxQ) + 1;
+                        const absA = absB * absQ;
+                        [a, b] = makeNegative(rng, absA, absB);
+                        answer = a / b;
+                    } else if (op === '×') {
+                        const absA = Math.floor(rng.next() * 20) + 1;
+                        const absB = Math.floor(rng.next() * 20) + 1;
+                        [a, b] = makeNegative(rng, absA, absB);
+                        answer = a * b;
+                    } else {
+                        const absA = Math.floor(rng.next() * 20) + 1;
+                        const absB = Math.floor(rng.next() * 20) + 1;
+                        [a, b] = makeNegative(rng, absA, absB);
+                        answer = op === '+' ? a + b : a - b;
+                    }
+
+                    // Wrap negative numbers in parentheses for clarity
+                    const fmt = n => n < 0 ? '(' + n + ')' : '' + n;
+
+                    return {
+                        question: fmt(a) + ' ' + op + ' ' + fmt(b) + ' =',
                         answer: answer
                     };
                 }

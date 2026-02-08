@@ -27,7 +27,7 @@ This is a browser-based math worksheet generator built as a single HTML file (`w
 - `worksheet.html` - The complete application (only file in the repo)
 - `CLAUDE.md` - This file (development notes)
 
-## Current Worksheet Types (8 total)
+## Current Worksheet Types (9 total)
 
 ### Fractions Category
 
@@ -91,6 +91,13 @@ This is a browser-based math worksheet generator built as a single HTML file (`w
 - 120px spacing for generous working space
 - Designed for column method practice
 
+#### 9. Negative Numbers (+, -, ×, ÷) (30 questions)
+- Operands with absolute value 1-20
+- At least one operand is always negative (~33% first only, ~33% second only, ~33% both)
+- All four operations: addition, subtraction, multiplication, division
+- Division always produces integer results (divisor 2-10, dividend ≤ 20)
+- Negative numbers displayed in parentheses: `(-5) + 3 =`
+
 ## Key Helper Functions
 
 ### `generateWeightedFraction(rng)`
@@ -137,7 +144,7 @@ Generates MathML markup for beautiful fraction rendering:
 ### Controls
 - **Worksheet Type Selector**: Categorized dropdown with optgroups
   - **Fractions**: 5 types (conversions, simplify, improper, add/subtract)
-  - **Arithmetic**: 3 types (×÷10/100, times tables, long add/subtract)
+  - **Arithmetic**: 4 types (×÷10/100, times tables, long add/subtract, negative numbers)
 - **Start Page**: First worksheet number to generate
 - **End Page**: Last worksheet number to generate (auto-updates if < start page)
 - **Questions per Sheet**: Dynamically set based on worksheet type
