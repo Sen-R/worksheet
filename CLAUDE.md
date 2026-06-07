@@ -17,7 +17,7 @@ This is a browser-based math worksheet generator built as a single HTML file (`w
 ## Architecture
 
 ### Key Design Principles
-1. **Modular Question Generators**: Each worksheet type is defined in the `questionGenerators` object with `title`, `defaultQuestions`, and `generate(rng)` function
+1. **Modular Question Generators**: Each worksheet type is defined in the `questionGenerators` object with `title`, `defaultQuestions`, and `generate(rng, difficulty)` function
 2. **Seeded Randomization**: Uses `SeededRandom` class to ensure the same worksheet number always generates the same questions
 3. **Single File Application**: Everything (HTML, CSS, JavaScript) is contained in `worksheet.html` for easy distribution
 4. **HTML/CSS Rendering**: Uses DOM manipulation and CSS for layout (formerly canvas-based)
@@ -46,25 +46,26 @@ This is a browser-based math worksheet generator built as a single HTML file (`w
 - 26px spacing for taller MathML elements
 
 #### 3. Simplify Fractions (30 questions)
-- Weighted denominators: [2, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 50, 100]
-- Generates non-simplified fractions that require simplification
-- 30% chance of improper fractions
+- **Easy denominators**: [2, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 50, 100]
+- **Medium denominators**: [6, 9, 10, 12, 14, 18, 20, 21, 28, 35, 42, 45, 63] — includes 7-family (14,21,28,35,42,63) and 9-family (9,18,45)
+- Common factor selection: Easy = uniform among all factors; Medium = biased toward largest 1-2 factors
+- Improper fraction chance: Easy 30%, Medium 50%
 - Answers include mixed numbers when appropriate (e.g., `2 1/3`)
-- Falls back to composite denominators if prime selected
 - MathML rendering
 
 #### 4. Improper to Mixed Numbers (30 questions)
-- Weighted denominators: [2, 3, 4, 5, 6, 8, 10, 12]
+- **Easy denominators**: [2, 3, 4, 5, 6, 8, 10, 12]; whole parts 1–5
+- **Medium denominators**: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12] (adds 7, 9, 11); whole parts 1–12
 - Generates improper fractions (numerator > denominator)
-- Whole parts range from 1-5
-- Answer format: mixed numbers (e.g., `3 2/5`)
+- Answer format: mixed numbers (e.g., `3 2/5`, `12 1/7`)
 - MathML rendering
 
 #### 5. Add & Subtract Fractions (20 questions)
-- Common denominators: [2, 3, 4, 5, 6, 8, 10]
+- **Easy**: shared denominator from [2, 3, 4, 5, 6, 8, 10] — no common-denominator finding required
+- **Medium**: two different denominators drawn from curated pairs (LCM ≤ 35), e.g. [2,3], [3,7], [5,7], [4,5]
 - 40% chance of mixed numbers in operands
 - 50/50 split between addition and subtraction
-- Automatically simplifies results
+- Automatically simplifies results using LCM as working denominator
 - Ensures subtraction results are positive
 - MathML rendering with proper operators (+, -, =)
 - 26px spacing
@@ -99,6 +100,12 @@ This is a browser-based math worksheet generator built as a single HTML file (`w
 - Negative numbers displayed in parentheses: `(-5) + 3 =`
 
 ## Key Helper Functions
+
+### `weightedPick(rng, items, alpha = 0.7)`
+General-purpose weighted selection used by all three fraction generators (simplify, improper-to-mixed, add-subtract):
+- Weights each item by `1 / item^alpha`
+- Smaller values are picked more often; alpha controls the decay rate
+- Replaces the inlined weighted-selection code that was previously duplicated across generators
 
 ### `generateWeightedFraction(rng)`
 Generates fractions with pedagogically-sound distribution:
@@ -145,6 +152,7 @@ Generates MathML markup for beautiful fraction rendering:
 - **Worksheet Type Selector**: Categorized dropdown with optgroups
   - **Fractions**: 5 types (conversions, simplify, improper, add/subtract)
   - **Arithmetic**: 4 types (×÷10/100, times tables, long add/subtract, negative numbers)
+- **Difficulty**: Easy (default) or Medium. Affects Simplify Fractions, Improper-to-Mixed, and Add/Subtract Fractions. Other tasks ignore it.
 - **Start Page**: First worksheet number to generate
 - **End Page**: Last worksheet number to generate (auto-updates if < start page)
 - **Questions per Sheet**: Dynamically set based on worksheet type
@@ -213,9 +221,10 @@ CSS rules target `data-worksheet-type` attribute:
 'new-type': {
     title: 'Display Title for Worksheet Header',
     defaultQuestions: 30,  // or appropriate number
-    generate: function(rng) {
+    generate: function(rng, difficulty) {
         // Your generation logic here
         // Use rng.next() for random numbers (returns 0-1)
+        // difficulty is 'easy' or 'medium' — ignore if not applicable
 
         return {
             question: "question text or expression",
@@ -295,7 +304,7 @@ python3 -m http.server 8000
 ## Future Enhancement Ideas
 - Add answer key toggle (code structure already supports it, commented out in generateWorksheets)
 - More worksheet types (percentages, ratios, order of operations, etc.)
-- Configurable difficulty levels
+- Hard difficulty level (e.g., mixed denominators from entirely different families, multi-step simplification)
 - Custom question ranges per type
 - Dark mode for on-screen viewing
 - Multiplication/division with larger numbers
@@ -303,7 +312,15 @@ python3 -m http.server 8000
 
 ## Recent Major Changes
 
-### 2025-01 (Latest)
+### 2026-06 (Latest)
+- Added **Difficulty control** (Easy/Medium) to the UI
+- **Simplify Fractions**: Medium adds 7-family and 9-family denominators; biases toward larger common factors; raises improper fraction rate to 50%
+- **Improper to Mixed**: Medium extends denominator pool to include 7, 9, 11; whole parts now reach 1–12
+- **Add & Subtract Fractions**: Medium uses different denominators requiring LCM (up to 35); curated pairs cover 7s, 9s, and mixed families
+- Extracted `weightedPick(rng, items, alpha)` helper to eliminate duplicate weighted-selection code across generators
+- Generator signature changed to `generate(rng, difficulty)` throughout
+
+### 2025-01
 - Refactored from canvas to HTML/CSS rendering
 - Added MathML support for fractions
 - Added 4 new worksheet types (simplify fractions, improper-to-mixed, add/subtract fractions, long addition/subtraction)
